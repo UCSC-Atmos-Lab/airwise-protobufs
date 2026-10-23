@@ -1,0 +1,51 @@
+syntax = "proto2";
+package airwise;
+
+// Version 1 changes encoding only: legacy HELLO / DATA / ACK-MISS semantics.
+message Frame {
+  required fixed32 app_id = 1;
+  required uint32 schema_version = 2;
+  required uint32 node_id = 3;
+  // Tags 4-9 are available for future optional stream/context metadata.
+  oneof body {
+    Hello hello = 10;
+    Data data = 11;
+    Ack ack = 12;
+    // Future receipt/batch variants must not reinterpret this legacy Ack.
+  }
+}
+message Hello {
+  required uint32 lowest_queued = 1;
+  required uint32 highest_queued = 2;
+  required uint32 acked_contig = 3;
+  required uint32 battery_mv = 4;
+}
+message Data {
+  required uint32 record_id = 1;
+  required fixed32 epoch = 2;
+  required sint32 solar_mv = 3;
+  required sint32 solar_ma = 4;
+  required sint32 batt_mv = 5;
+  required sint32 batt_ma = 6;
+  required sint32 radio_mv = 7;
+  required sint32 radio_ma = 8;
+  required sint32 temperature_c_x100 = 9;
+  required sint32 humidity_pct_x100 = 10;
+  required uint32 gas_ohms = 11;
+  required uint32 pressure_pa = 12;
+  required uint32 pm1 = 13;
+  required uint32 pm25 = 14;
+  required uint32 pm10 = 15;
+  required uint32 bmv_obs = 16;
+  required float ch4_conc = 17; // Percent LEL; retains the current float reading.
+  required sint32 ch4_temp_x100 = 18;
+  required uint32 ch4_error = 19;
+  required sfixed32 lat_e7 = 20;
+  required sfixed32 lon_e7 = 21;
+  required uint32 siv = 22;
+}
+message Ack {
+  required uint32 contig = 1;
+  required uint32 highest_seen = 2;
+  repeated uint32 miss = 3 [packed = true];
+}

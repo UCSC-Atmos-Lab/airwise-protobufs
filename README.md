@@ -9,6 +9,12 @@
 
 The [Protobuf](https://developers.google.com/protocol-buffers) message definitions for the Meshtastic project (used by apps and the device firmware).
 
+This fork also carries the [Airwise v1 frame](airwise/airwise.proto). Airwise
+sensor and sink applications exchange serialized `airwise.Frame` payloads on
+Meshtastic `PRIVATE_APP` (port 256). The `airwise.options` file bounds ACK missing
+record IDs to 16 for nanopb. Firmware routes the payload as application data;
+Airwise consumers validate the frame and handle HELLO, DATA, and ACK.
+
 **[Documentation/API Reference](https://buf.build/meshtastic/protobufs)**
 
 ## Generated client packages
