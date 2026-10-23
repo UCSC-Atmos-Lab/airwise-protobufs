@@ -29,9 +29,11 @@ sensor `node_id`, nonzero persistent `stream_id`, and exactly one body. DATA
 requires a nonzero `record_id` and at least one present sensor reading or
 status, not merely an empty sensor group. Reject nonfinite floats, out-of-range
 sensor values, and incomplete or invalid coordinates when position is present.
-HELLO requires all three queue fields: `0/0` means an empty queue; otherwise
-the bounds must be nonzero and ordered. ACK requires `contig` and
-`highest_seen`; require `contig <= highest_seen` and up to 16 distinct `miss`
+HELLO requires all three queue fields. Require nonzero `lowest_queued` equal
+to `acked_contig + 1`, with no record-ID wrap; `highest_queued` is the last
+allocated ID. The queue is empty when `highest_queued < lowest_queued`.
+ACK requires `contig` and `highest_seen`; require `contig <= highest_seen`
+and up to 16 distinct `miss`
 IDs in `(contig, highest_seen]`. Validate HELLO and ACK before changing queue,
 watermark, or retry state. For DATA and HELLO, check that `node_id` agrees with
 the Meshtastic sender; for ACK, check the expected sink sender, destination

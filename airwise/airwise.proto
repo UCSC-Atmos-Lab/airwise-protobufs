@@ -21,8 +21,9 @@ message Frame {
 }
 
 message Hello {
-  // All three queue fields must be present. Use 0/0 for an empty queue;
-  // otherwise require 1 <= lowest_queued <= highest_queued.
+  // All three queue fields must be present. lowest_queued is the first
+  // unacknowledged ID (acked_contig + 1); highest_queued is the last
+  // allocated ID. A queue is empty when highest_queued < lowest_queued.
   optional uint32 lowest_queued = 1;
   optional uint32 highest_queued = 2;
   optional uint32 acked_contig = 3;
@@ -40,6 +41,7 @@ message Data {
   optional fixed32 sampled_at_epoch_s = 2;
   optional uint32 sampled_at_uptime_ms = 3;
   optional bool fan_on = 4;
+  // Elapsed fan-on time at acquisition; omit when the fan is not running.
   optional uint32 fan_run_ms = 5;
 
   optional Ina3221Power ina3221 = 10;
