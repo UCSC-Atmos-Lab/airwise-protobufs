@@ -1,51 +1,112 @@
 syntax = "proto2";
 package airwise;
 
-// Version 1 changes encoding only: legacy HELLO / DATA / ACK-MISS semantics.
+// Serialize one Frame in a Meshtastic PRIVATE_APP payload. Consumers must
+// require app_id, schema_version, node_id, stream_id, and one body.
 message Frame {
-  required fixed32 app_id = 1;
-  required uint32 schema_version = 2;
-  required uint32 node_id = 3;
-  // Tags 4-9 are available for future optional stream/context metadata.
+  optional fixed32 app_id = 1; // 0x41525753 ("ARWS").
+  optional uint32 schema_version = 2; // 1.
+  // Sensor node whose record namespace the frame refers to. On ACK this is
+  // the destination sensor, not the sender of the ACK.
+  optional uint32 node_id = 3;
+  // A persistent identifier for one record-ID namespace. Validate it together
+  // with the actual Meshtastic sender, including on HELLO and ACK.
+  optional fixed64 stream_id = 4;
+
   oneof body {
     Hello hello = 10;
     Data data = 11;
     Ack ack = 12;
-    // Future receipt/batch variants must not reinterpret this legacy Ack.
   }
 }
+
 message Hello {
-  required uint32 lowest_queued = 1;
-  required uint32 highest_queued = 2;
-  required uint32 acked_contig = 3;
-  required uint32 battery_mv = 4;
+  // All three queue fields must be present. lowest_queued is the first
+  // unacknowledged ID (acked_contig + 1); highest_queued is the last
+  // allocated ID. A queue is empty when highest_queued < lowest_queued.
+  optional uint32 lowest_queued = 1;
+  optional uint32 highest_queued = 2;
+  optional uint32 acked_contig = 3;
+  optional uint32 battery_mv = 4;
 }
+
+// One V4 sensor sample. Every sensor group and reading is optional: absence
+// means unavailable, while a present zero is a valid measured value. The
+// application requires a nonzero record_id and at least one measured value or
+// sensor status inside a sensor group; an empty group is not a reading.
 message Data {
-  required uint32 record_id = 1;
-  required fixed32 epoch = 2;
-  required sint32 solar_mv = 3;
-  required sint32 solar_ma = 4;
-  required sint32 batt_mv = 5;
-  required sint32 batt_ma = 6;
-  required sint32 radio_mv = 7;
-  required sint32 radio_ma = 8;
-  required sint32 temperature_c_x100 = 9;
-  required sint32 humidity_pct_x100 = 10;
-  required uint32 gas_ohms = 11;
-  required uint32 pressure_pa = 12;
-  required uint32 pm1 = 13;
-  required uint32 pm25 = 14;
-  required uint32 pm10 = 15;
-  required uint32 bmv_obs = 16;
-  required float ch4_conc = 17; // Percent LEL; retains the current float reading.
-  required sint32 ch4_temp_x100 = 18;
-  required uint32 ch4_error = 19;
-  required sfixed32 lat_e7 = 20;
-  required sfixed32 lon_e7 = 21;
-  required uint32 siv = 22;
+  optional uint32 record_id = 1;
+  // Capture at acquisition, not when an SD backlog record is transmitted.
+  // Omit when the UTC clock is not trustworthy.
+  optional fixed32 sampled_at_epoch_s = 2;
+  optional uint32 sampled_at_uptime_ms = 3;
+  optional bool fan_on = 4;
+  // Elapsed fan-on time at acquisition; omit when the fan is not running.
+  optional uint32 fan_run_ms = 5;
+
+  optional Ina3221Power ina3221 = 10;
+  optional Bme680Reading bme680 = 11;
+  optional Scd41Reading scd41 = 12;
+  optional Sht40Reading sht40 = 13;
+  optional Bmv080Reading bmv080 = 14;
+  // Optional historical sample fix. Native Meshtastic Position describes the
+  // node's latest position and may not match a sample replayed from SD.
+  optional SamplePosition position = 15;
 }
+
+// ACK-MISS describes application receipt, not a durable storage commit.
+// Consumers must require contig and highest_seen, with contig <= highest_seen.
+// Each distinct miss must be greater than contig and at most highest_seen.
 message Ack {
-  required uint32 contig = 1;
-  required uint32 highest_seen = 2;
+  optional uint32 contig = 1;
+  optional uint32 highest_seen = 2;
   repeated uint32 miss = 3 [packed = true];
+}
+
+message Ina3221Power {
+  // V4 channel mapping: 1 battery, 2 solar, 3 fan.
+  optional PowerChannel battery = 1;
+  optional PowerChannel solar = 2;
+  optional PowerChannel fan = 3;
+}
+
+message PowerChannel {
+  optional float bus_voltage_v = 1;
+  optional float current_ma = 2;
+  // Power in mW is derived from voltage in V and current in mA.
+}
+
+message Bme680Reading {
+  optional float temperature_c = 1;
+  optional float relative_humidity_pct = 2;
+  optional float pressure_pa = 3;
+  optional float gas_resistance_ohms = 4;
+}
+
+message Scd41Reading {
+  optional uint32 co2_ppm = 1;
+  optional float temperature_c = 2;
+  optional float relative_humidity_pct = 3;
+}
+
+message Sht40Reading {
+  optional float temperature_c = 1;
+  optional float relative_humidity_pct = 2;
+}
+
+message Bmv080Reading {
+  optional float pm1_ug_m3 = 1;
+  optional float pm25_ug_m3 = 2;
+  optional float pm10_ug_m3 = 3;
+  optional bool obstructed = 4;
+}
+
+message SamplePosition {
+  // Include only when a valid GNSS fix was captured with this sample.
+  // Both coordinates must be present and in range when this group is present.
+  optional sfixed32 latitude_e7 = 1;
+  optional sfixed32 longitude_e7 = 2;
+  optional sint32 altitude_mm = 3;
+  optional uint32 satellites_in_view = 4;
+  optional fixed32 fix_epoch_s = 5;
 }
