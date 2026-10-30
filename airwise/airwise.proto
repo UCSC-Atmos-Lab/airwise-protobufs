@@ -52,6 +52,15 @@ message Data {
   // Optional historical sample fix. Native Meshtastic Position describes the
   // node's latest position and may not match a sample replayed from SD.
   optional SamplePosition position = 15;
+  optional OzoneReading ozone = 16;
+}
+
+// DFRobot SEN0472. Concentration uses the sensor's factory calibration;
+// no host temperature compensation is applied. Failed reads are absent.
+message OzoneReading {
+  optional float concentration_ppm = 1;
+  optional float probe_voltage_v = 2;
+  optional float board_temperature_c = 3;
 }
 
 // ACK-MISS describes application receipt, not a durable storage commit.
